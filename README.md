@@ -9,3 +9,15 @@ derivatives. The originals stay on Hugging Face.
 
 `catalog.json` lists `id`, `url`, `mass`, and `hull`.
 `glb/` is one mesh per asset.
+
+
+## App
+
+The pile viewer lives in this repo: a full-screen phone scene that drops the
+catalog into one ring, one percent at a time. Tilt tilts gravity. Drag an
+object to move it. `more` releases the next percent.
+
+```
+npm install
+npm run dev
+```
