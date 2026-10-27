@@ -2,6 +2,7 @@ import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNo
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import {
+  CoefficientCombineRule,
   ConvexHullCollider,
   CuboidCollider,
   Physics,
@@ -83,19 +84,114 @@ function Backdrop({ lit }: { lit: boolean }) {
 
 const AREA = 2.85;
 
+function discGeometry(radius: number, rings: number, segs: number) {
+  const positions = [0, 0, 0];
+  const indices: number[] = [];
+  for (let ring = 1; ring <= rings; ring++) {
+    const rad = (ring / rings) * radius;
+    for (let seg = 0; seg < segs; seg++) {
+      const angle = (seg / segs) * Math.PI * 2;
+      positions.push(Math.cos(angle) * rad, Math.sin(angle) * rad, 0);
+    }
+  }
+  for (let seg = 0; seg < segs; seg++) {
+    indices.push(0, 1 + seg, 1 + ((seg + 1) % segs));
+  }
+  for (let ring = 1; ring < rings; ring++) {
+    const row = 1 + (ring - 1) * segs;
+    const next = row + segs;
+    for (let seg = 0; seg < segs; seg++) {
+      const a = row + seg;
+      const b = row + ((seg + 1) % segs);
+      const c = next + seg;
+      const d = next + ((seg + 1) % segs);
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function Membrane({ lit }: { lit: boolean }) {
+  const rings = 16;
+  const segs = 32;
+  const geometry = useMemo(() => discGeometry(AREA, rings, segs), []);
+  const rest = useMemo(() => Float32Array.from(geometry.attributes.position.array), [geometry]);
+  const velocity = useMemo(() => new Float32Array(geometry.attributes.position.count), [geometry]);
+  const edgeStart = 1 + (rings - 1) * segs;
+
+  useFrame((_, delta) => {
+    const step = Math.min(delta, 0.033);
+    const position = geometry.attributes.position;
+    const array = position.array as Float32Array;
+    const presses: { x: number; y: number; depth: number }[] = [];
+    for (const body of bodies) {
+      if (body === pileBus.held) continue;
+      const t = body.translation();
+      const speed = body.linvel();
+      if (t.y > 0.85) continue;
+      const localX = t.x;
+      const localY = -t.z;
+      if (Math.hypot(localX, localY) > AREA) continue;
+      const depth = Math.min(0.46, Math.max(0, -speed.y) * 0.045 + Math.max(0, 0.42 - t.y) * 0.55);
+      if (depth > 0.012) presses.push({ x: localX, y: localY, depth });
+    }
+    for (let i = 0; i < position.count; i++) {
+      const o = i * 3;
+      if (i >= edgeStart) {
+        array[o + 2] = 0;
+        velocity[i] = 0;
+        continue;
+      }
+      const x = rest[o] ?? 0;
+      const y = rest[o + 1] ?? 0;
+      let target = 0;
+      for (const press of presses) {
+        const dist = Math.hypot(x - press.x, y - press.y);
+        const reach = 0.72;
+        if (dist >= reach) continue;
+        target -= press.depth * Math.cos((dist / reach) * Math.PI * 0.5);
+      }
+      target = Math.max(target, -0.4);
+      const z = array[o + 2] ?? 0;
+      const next = (velocity[i] ?? 0) + ((target - z) * 78 - (velocity[i] ?? 0) * 8.5) * step;
+      velocity[i] = next;
+      array[o + 2] = z + next * step;
+    }
+    position.needsUpdate = true;
+    geometry.computeVertexNormals();
+  });
+
+  return (
+    <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} receiveShadow>
+      <meshStandardMaterial
+        color={lit ? "#d7c2ae" : "#241c16"}
+        roughness={0.48}
+        metalness={0}
+      />
+    </mesh>
+  );
+}
+
 function Floor({ lit }: { lit: boolean }) {
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.015, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
         <circleGeometry args={[22, 64]} />
         <meshStandardMaterial color={lit ? "#e6ded2" : "#12100c"} roughness={1} metalness={0} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <circleGeometry args={[AREA, 80]} />
-        <meshStandardMaterial color={lit ? "#d8cfc2" : "#1b1814"} roughness={0.94} metalness={0.02} />
-      </mesh>
-      <RigidBody type="fixed" colliders={false} friction={1} restitution={0.02}>
-        <CuboidCollider args={[24, 0.4, 24]} position={[0, -0.4, 0]} friction={0.98} restitution={0.02} />
+      <Membrane lit={lit} />
+      <RigidBody type="fixed" colliders={false} friction={0.48} restitution={0.86}>
+        <CuboidCollider
+          args={[24, 4, 24]}
+          position={[0, -4, 0]}
+          friction={0.48}
+          restitution={0.86}
+          restitutionCombineRule={CoefficientCombineRule.Max}
+        />
         {Array.from({ length: 18 }, (_, i) => {
           const a = (i / 18) * Math.PI * 2;
           return (
@@ -104,8 +200,8 @@ function Floor({ lit }: { lit: boolean }) {
               args={[0.16, 1.7, 0.58]}
               position={[Math.sin(a) * (AREA + 0.2), 1.6, Math.cos(a) * (AREA + 0.2)]}
               rotation={[0, a - Math.PI / 2, 0]}
-              friction={0.8}
-              restitution={0.04}
+              friction={0.7}
+              restitution={0.18}
             />
           );
         })}
@@ -556,8 +652,17 @@ function WorldForces() {
       if (!Number.isFinite(mass) || mass <= 0 || body === pileBus.held) continue;
       const t = body.translation();
       const dist = Math.hypot(t.x, t.z);
+      if (t.y < -0.02) {
+        const v = body.linvel();
+        body.setTranslation({ x: t.x, y: 0.06, z: t.z }, true);
+        body.setLinvel(
+          { x: v.x * 0.9, y: Math.max(2.4, -v.y * 0.8), z: v.z * 0.9 },
+          true,
+        );
+        continue;
+      }
       const edge = AREA - 0.35;
-      if (dist < edge && t.y > -0.05) continue;
+      if (dist < edge) continue;
       const pull = Math.min(28, Math.max(0, dist - edge) * 6 + Math.max(0, -t.y) * 12);
       const scale = pull * mass * dt;
       const basis = Math.max(dist, 0.2);
@@ -632,7 +737,7 @@ function OrbitRig() {
 
 function Stage({ lit }: { lit: boolean }) {
   return (
-    <Physics gravity={[0, -18, 0]} timeStep={1 / 60}>
+    <Physics gravity={[0, -18, 0]} timeStep={1 / 60} maxCcdSubsteps={6} contactNaturalFrequency={90}>
       <Backdrop lit={lit} />
       <Lights lit={lit} />
       <Floor lit={lit} />
