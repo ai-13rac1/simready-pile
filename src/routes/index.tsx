@@ -134,7 +134,7 @@ async function enableMotion() {
 function Home() {
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
-  const lit = useSyncExternalStore(subscribePile, () => pileBus.lit, () => false);
+  const lit = useSyncExternalStore(subscribePile, () => pileBus.lit, () => true);
   const more = useSyncExternalStore(subscribePile, () => pileBus.moreReady, () => false);
 
   useEffect(() => {

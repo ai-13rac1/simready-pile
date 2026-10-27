@@ -8,7 +8,7 @@ export const bodyIds = new Map<RapierRigidBody, string>();
 export const pileBus = {
   dragging: false,
   held: null as RapierRigidBody | null,
-  lit: false,
+  lit: true,
   shakeSeq: 0,
   shakePower: 1,
   orient: { beta: 0, gamma: 0, active: false },
