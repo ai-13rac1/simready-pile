@@ -133,7 +133,6 @@ async function enableMotion() {
 
 function Home() {
   const [mounted, setMounted] = useState(false);
-  const [open, setOpen] = useState(false);
   const lit = useSyncExternalStore(subscribePile, () => pileBus.lit, () => true);
   const more = useSyncExternalStore(subscribePile, () => pileBus.moreReady, () => false);
 
@@ -192,20 +191,64 @@ function Home() {
     <main className="fixed inset-0 h-[100dvh] w-[100vw] overflow-hidden bg-bg text-fg">
       <div className="absolute inset-0">{mounted ? <PileCanvas lit={lit} /> : null}</div>
 
-      {more ? (
+      <div className="absolute inset-x-0 z-10 flex items-center justify-center gap-3 px-3 bottom-[max(1.7rem,calc(env(safe-area-inset-bottom)+1.35rem))]">
         <button
           type="button"
-          className="absolute top-[max(0.7rem,env(safe-area-inset-top))] left-1/2 z-10 -translate-x-1/2 rounded-full border border-line bg-surface/90 px-5 py-2 text-sm tracking-wide text-fg backdrop-blur-md"
+          aria-pressed={lit}
+          aria-label={lit ? "Lights on" : "Turn lights on"}
           onClick={() => {
-            pileBus.moreTick += 1;
-            pileBus.moreReady = false;
-            emitPile();
+            pileBus.heat = Math.min(1, pileBus.heat + 0.1);
             void enableMotion();
+            pileBus.lit = !pileBus.lit;
+            emitPile();
           }}
+          className={`inline-flex size-12 shrink-0 items-center justify-center rounded-full border backdrop-blur-md ${lit ? "border-amber bg-amber/30" : "border-line bg-surface/85"}`}
         >
-          more
+          <img src="/xero/1f4a1.svg" alt="" className={`size-8 ${lit ? "" : "opacity-60"}`} />
         </button>
-      ) : null}
+        {more ? (
+          <button
+            type="button"
+            className="more-stuff relative"
+            onClick={() => {
+              pileBus.moreTick += 1;
+              pileBus.moreReady = false;
+              emitPile();
+              void enableMotion();
+            }}
+          >
+            <span className="more-stuff-bulbs" aria-hidden="true">
+              {Array.from({ length: 14 }, (_, i) => {
+                const top = i < 7;
+                const slot = top ? i : i - 7;
+                return (
+                  <i
+                    key={i}
+                    style={{
+                      left: `${8 + slot * 14}%`,
+                      top: top ? -11 : undefined,
+                      bottom: top ? undefined : -11,
+                      animationDelay: `${slot * 0.08}s`,
+                    }}
+                  />
+                );
+              })}
+              <i style={{ left: -10, top: "50%", marginTop: -5, animationDelay: "0.16s" }} />
+              <i style={{ right: -10, top: "50%", marginTop: -5, animationDelay: "0.4s" }} />
+            </span>
+            <span className="more-stuff-label">More Stuff</span>
+          </button>
+        ) : null}
+        <a
+          href="https://github.com/maximusmaximus/simready-pile"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Info"
+          className="inline-flex size-12 shrink-0 items-center justify-center rounded-full border border-line bg-surface/85 backdrop-blur-md"
+        >
+          <img src="/xero/2139.svg" alt="" className="size-8" />
+        </a>
+      </div>
 
       <p className="absolute inset-x-0 bottom-[max(0.35rem,env(safe-area-inset-bottom))] z-10 text-center text-xs leading-none text-fg/90">
         made with <img src="/xero/1f9e1.svg" alt="🧡" className="inline size-3.5 align-[-2px]" /> in SF{" "}
@@ -218,36 +261,6 @@ function Home() {
           maxi.grok.me
         </a>
       </p>
-
-      <div className="absolute right-4 bottom-[max(2.1rem,calc(env(safe-area-inset-bottom)+1.7rem))] z-10 flex items-center gap-2">
-        <button
-          type="button"
-          aria-pressed={lit}
-          aria-label={lit ? "Lights on" : "Turn lights on"}
-          onClick={() => {
-            pileBus.heat = Math.min(1, pileBus.heat + 0.1);
-            void enableMotion();
-            pileBus.lit = !pileBus.lit;
-            emitPile();
-          }}
-          className={`inline-flex size-12 items-center justify-center rounded-full border backdrop-blur-md ${lit ? "border-amber bg-amber/30" : "border-line bg-surface/85"}`}
-        >
-          <img src="/xero/1f4a1.svg" alt="" className={`size-8 ${lit ? "" : "opacity-60"}`} />
-        </button>
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-label="Info"
-          onClick={() => {
-            pileBus.heat = Math.min(1, pileBus.heat + 0.1);
-            void enableMotion();
-            setOpen((value) => !value);
-          }}
-          className="inline-flex size-12 items-center justify-center rounded-full border border-line bg-surface/85 backdrop-blur-md"
-        >
-          <img src="/xero/2139.svg" alt="" className="size-8" />
-        </button>
-      </div>
     </main>
   );
 }

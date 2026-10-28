@@ -1,21 +1,24 @@
 # simready-pile
 
-Simplified GLB meshes and convex-hull points for every asset in
-[nvidia/simready-assets](https://huggingface.co/datasets/nvidia/simready-assets),
-so a phone can drop the whole library in one physics pile.
+**Play it:** [stuff.grok.me](https://stuff.grok.me)
 
-Each source asset is CC BY 4.0, NVIDIA. These files are scaled, decimated
-derivatives. The originals stay on Hugging Face.
+A full-screen phone pile of NVIDIA SimReady props. The lights start on. One percent of the library drops into a ring, tilted so you can see things land flat. Tap **More Stuff** for the next percent. Tilt the phone and gravity follows. Drag an object to flick it.
 
-`catalog.json` lists `id`, `url`, `mass`, and `hull`.
-`glb/` is one mesh per asset.
+The bulb on the left of More Stuff turns the room lights on and off. The **i** on the right opens this repo.
 
+![The pile on a phone, with the light, More Stuff, and info controls along the bottom](docs/pile-phone.png)
 
-## App
+![The same pile a little wider, still framed along the bottom of the screen](docs/pile-wide.png)
 
-The pile viewer lives in this repo: a full-screen phone scene that drops the
-catalog into one ring, one percent at a time. Tilt tilts gravity. Drag an
-object to move it. `more` releases the next percent.
+## What's here
+
+- The viewer in `src/` — React Three Fiber and Rapier, with device tilt for gravity
+- `catalog.json` — id, mass, convex hull, and mesh url for each prop
+- `glb/` — one simplified mesh per asset
+
+Source assets are [nvidia/simready-assets](https://huggingface.co/datasets/nvidia/simready-assets), CC BY 4.0, NVIDIA. These GLBs are scaled, decimated derivatives. The originals stay on Hugging Face.
+
+## Run
 
 ```
 npm install

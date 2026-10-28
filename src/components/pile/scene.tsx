@@ -722,17 +722,49 @@ function OrbitRig() {
       zoomSpeed={1.2}
       enableDamping
       dampingFactor={0.07}
-      minDistance={3.2}
-      maxDistance={18}
+      minDistance={2.4}
+      maxDistance={28}
       minPolarAngle={0.08}
       maxPolarAngle={1.42}
-      target={[0, 0.05, 0]}
+      target={[0, 0.15, 0]}
       touches={{
         ONE: THREE.TOUCH.ROTATE,
         TWO: THREE.TOUCH.DOLLY_PAN,
       }}
     />
   );
+}
+
+const PLANE_TILT = Math.PI / 6;
+
+function FrameView() {
+  const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
+  const size = useThree((s) => s.size);
+  const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
+
+  useEffect(() => {
+    const aspect = Math.max(0.35, size.width / Math.max(1, size.height));
+    const fov = 40;
+    camera.fov = fov;
+    const vFov = THREE.MathUtils.degToRad(fov);
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
+    const span = AREA * 2 + 0.7;
+    const dist = span / 2 / Math.tan(hFov / 2);
+    const look = new THREE.Vector3(0, 0.12, 0);
+    camera.position.set(0, look.y + Math.sin(PLANE_TILT) * dist, look.z + Math.cos(PLANE_TILT) * dist);
+    camera.near = 0.08;
+    camera.far = Math.max(80, dist * 4);
+    camera.lookAt(look);
+    const fullH = size.height * 1.06;
+    camera.setViewOffset(size.width, fullH, 0, 0, size.width, size.height);
+    camera.updateProjectionMatrix();
+    if (controls) {
+      controls.target.copy(look);
+      controls.update();
+    }
+  }, [camera, controls, size.height, size.width]);
+
+  return null;
 }
 
 function Stage({ lit }: { lit: boolean }) {
@@ -745,6 +777,7 @@ function Stage({ lit }: { lit: boolean }) {
       <PersistPile />
       <WorldForces />
       <OrbitRig />
+      <FrameView />
     </Physics>
   );
 }
@@ -755,7 +788,7 @@ export function PileCanvas({ lit }: { lit: boolean }) {
       className="h-full w-full touch-none"
       shadows
       dpr={[1, 1.5]}
-      camera={{ position: [4.8, 8.4, 5.6], fov: 34, near: 0.08, far: 60 }}
+      camera={{ position: [0, 6.2, 10.8], fov: 40, near: 0.08, far: 80 }}
       gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
       onPointerMissed={() => {
         pileBus.dragging = false;
